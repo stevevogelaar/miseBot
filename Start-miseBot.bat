@@ -23,9 +23,9 @@ cd /d "%PROJECT_ROOT%"
 if not exist "%PROJECT_ROOT%logs" mkdir "%PROJECT_ROOT%logs"
 set LOG_FILE=%PROJECT_ROOT%logs\misebot-start.log
 
-:: Kill any stale miseBot / streamlit on port 8501
+:: Kill any stale miseBot / streamlit on port 8503
 echo Flushing stale miseBot / Streamlit processes...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8501') do (
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8503') do (
     taskkill /F /PID %%a > nul 2>&1
 )
 timeout /t 2 /nobreak > nul
@@ -57,15 +57,15 @@ echo   Ctrl+C here and confirm Y to stop.
 echo ********************************************
 echo.
 echo miseBot is starting on:
-echo   http://localhost:8501
-echo   http://192.168.68.111:8501  (local network)
+echo   http://localhost:8503
+echo   http://192.168.68.111:8503  (local network)
 echo.
 echo Ctrl+click one of the URLs above to open.
 echo.
 
 :: Run headless so browser does not auto-open
 echo Starting... (see %LOG_FILE% for details)
-streamlit run app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true --server.runOnSave false >> "%LOG_FILE%" 2>&1
+streamlit run app.py --server.port 8503 --server.address 0.0.0.0 --server.headless true --server.runOnSave false >> "%LOG_FILE%" 2>&1
 
 if errorlevel 1 (
     echo.
