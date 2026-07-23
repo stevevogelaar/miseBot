@@ -25,6 +25,7 @@ from data.seed_data import run_seed
 from bot_engine import parse_user_input, generate_reply
 from email_sender import build_shopping_email, build_prep_email, send_email
 from components.mobile_frame import inject_mobile_css
+from components.logo_b64 import LOGO_B64
 from utils.helpers import check_low_stock
 
 # ─── Init ────────────────────────────────────────────────────────────────────
@@ -55,16 +56,21 @@ for k, v in defaults.items():
 settings = get_settings()
 
 # ─── Header ──────────────────────────────────────────────────────────────────
-logo_path = "miseBot-logo.png"
+st.markdown(
+    f"""
+    <div class="app-header">
+        <div class="app-logo">
+            <img src="data:image/png;base64,{LOGO_B64}" alt="miseBot" style="width:36px; height:36px; border-radius:6px;">
+            <span class="app-title">miseBot</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-header_cols = st.columns([1, 4, 1])
-with header_cols[0]:
-    st.image(logo_path, width=36)
-with header_cols[1]:
-    st.markdown('<div class="app-title" style="font-size:20px; font-weight:700; color:#1A1A1A; padding-top:4px;">miseBot</div>', unsafe_allow_html=True)
-with header_cols[2]:
-    if st.button("⚙️", key="gear_btn", help="Settings"):
-        st.session_state.settings_open = not st.session_state.settings_open
+# Gear icon
+if st.button("⚙️", key="gear_btn", help="Settings"):
+    st.session_state.settings_open = not st.session_state.settings_open
 
 # ─── Settings Modal ──────────────────────────────────────────────────────────
 if st.session_state.settings_open:
