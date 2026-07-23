@@ -456,3 +456,38 @@ Stack (most recent call last):
   Network URL: http://192.168.68.111:8503
   External URL: http://23.239.61.64:8503
 
+2026-07-22 23:32:43.087 Uvicorn server started on 0.0.0.0:8503
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8503
+  Network URL: http://192.168.68.111:8503
+  External URL: http://23.239.61.64:8503
+
+2026-07-22 23:32:54.366 `label` got an empty value. This is discouraged for accessibility reasons and may be disallowed in the future by raising an exception. Please provide a non-empty label and hide it with label_visibility if needed.
+Stack (most recent call last):
+  File "C:\Users\Steve Vogelaar\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1030, in _bootstrap
+    self._bootstrap_inner()
+  File "C:\Users\Steve Vogelaar\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "C:\Users\Steve Vogelaar\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\Steve Vogelaar\Documents\_IT Oversight\Hackathon\miseBot\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 418, in _run_script_thread
+    self._run_script(request.rerun_data)
+  File "C:\Users\Steve Vogelaar\Documents\_IT Oversight\Hackathon\miseBot\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 832, in _run_script
+    ) = exec_func_with_error_handling(code_to_exec, ctx)
+  File "C:\Users\Steve Vogelaar\Documents\_IT Oversight\Hackathon\miseBot\venv\Lib\site-packages\streamlit\runtime\scriptrunner\exec_code.py", line 129, in exec_func_with_error_handling
+    result = func()
+  File "C:\Users\Steve Vogelaar\Documents\_IT Oversight\Hackathon\miseBot\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 807, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+  File "C:\Users\Steve Vogelaar\Documents\_IT Oversight\Hackathon\miseBot\app.py", line 112, in <module>
+    chat_input = st.text_input("", placeholder="Type a command...", key="chat_input", label_visibility="collapsed")
+  File "C:\Users\Steve Vogelaar\Documents\_IT Oversight\Hackathon\miseBot\venv\Lib\site-packages\streamlit\runtime\metrics_util.py", line 568, in wrapped_func
+    result = non_optional_func(*args, **kwargs)
+  File "C:\Users\Steve Vogelaar\Documents\_IT Oversight\Hackathon\miseBot\venv\Lib\site-packages\streamlit\elements\widgets\text_widgets.py", line 341, in text_input
+    return self._text_input(
+  File "C:\Users\Steve Vogelaar\Documents\_IT Oversight\Hackathon\miseBot\venv\Lib\site-packages\streamlit\elements\widgets\text_widgets.py", line 392, in _text_input
+    maybe_raise_label_warnings(label, label_visibility)
+  File "C:\Users\Steve Vogelaar\Documents\_IT Oversight\Hackathon\miseBot\venv\Lib\site-packages\streamlit\elements\lib\policies.py", line 150, in maybe_raise_label_warnings
+    _LOGGER.warning(
+  Stopping...
