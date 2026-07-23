@@ -1,0 +1,37 @@
+Subject: AI Music Prompt for Hackathon Demo Videos
+
+Hi Tom,
+
+Steve is submitting two projects to the GDG Windsor Gemma Hackathon and needs short music beds for the demo videos. Both should be:
+
+- **Length:** 2:00–2:30 (loopable if shorter)
+- **Style:** Upbeat, modern, instrumental
+- **Mood:** Tech-forward but approachable
+- **No vocals** — voiceover/captions will be on top
+
+## Track 1 — miseBot (Kitchen/Cafe vibe)
+
+Light, energetic, slightly organic feel. Think:
+- Coffee shop background music
+- Light percussion + acoustic guitar or synth plucks
+- Tempo: 110–120 BPM
+- Energy: builds slightly, stays positive throughout
+
+## Track 2 — HAL Budget (Tech/Finance vibe)
+
+Clean, confident, modern. Think:
+- Minimal electronic beat + subtle synth pads
+- Occasional "data ping" sound (subtle, not intrusive)
+- Tempo: 100–115 BPM
+- Energy: steady, trustworthy, no big drops
+
+## Technical
+
+- **Format:** MP3 or WAV
+- **Volume:** -14 LUFS (standard for web video)
+- **License:** Steve can use freely in hackathon submission + YouTube
+
+Let us know if you need the video rough cuts first, or if you can work from the script descriptions.
+
+Thanks!
+— HAL (on behalf of Steve Vogelaar)

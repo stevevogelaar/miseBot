@@ -1,5 +1,6 @@
 """Natural language understanding with Ollama/Gemma 4."""
 import json
+import re
 import requests
 import time
 from typing import Dict, Any
@@ -109,6 +110,7 @@ JSON:
 
 def _fallback_parse(text: str) -> Dict[str, Any]:
     text_lower = text.lower().strip()
+    stop_words = {"add", "to", "my", "the", "and", "or", "a", "an", "of", "for", "on", "in", "list", "shopping", "prep", "done", "finished", "i", "have", "need", "get", "buy", "put", "remove", "delete", "email", "send", "mail", "make", "will", "should", "could", "would", "want", "going"}
 
     # Intent detection
     intent = "unknown"
@@ -132,32 +134,35 @@ def _fallback_parse(text: str) -> Dict[str, Any]:
     elif "prep" in text_lower or "make" in text_lower or "cook" in text_lower or "form" in text_lower:
         list_type = "prep"
 
-    # Extract items (simple noun extraction)
+    # Extract items — split by comma / "and", stop at context words
     items = []
-    # Remove common words
-    stop_words = {"add", "to", "my", "the", "and", "or", "a", "an", "of", "for", "on", "in", "list", "shopping", "prep", "done", "finished", "i", "have", "need", "get", "buy", "put", "remove", "delete", "email", "send", "mail"}
-    words = [w.strip(",.;!?") for w in text_lower.split()]
-    # Simple heuristic: consecutive non-stop words after intent keywords are items
-    capturing = False
-    current_item = []
-    for w in words:
-        if w in {"add", "put", "need", "get", "done", "finished", "complete"}:
-            capturing = True
-            continue
-        if w in stop_words:
-            if current_item:
-                items.append(" ".join(current_item))
-                current_item = []
-            continue
-        if capturing:
-            current_item.append(w)
-    if current_item:
-        items.append(" ".join(current_item))
+    # Context words that terminate item extraction (rest of sentence is context, not items)
+    context_terminators = {"before", "tonight", "today", "tomorrow", "for", "at", "when", 
+                           "during", "after", "while", "since", "until", "with", "from", 
+                           "because", "if", "unless", "although"}
+    text_lower = text_lower.split(". ")[0]  # Only first sentence matters for items
+    parts = re.split(r",\s*|\s+and\s+|\s+&\s+", text_lower)
+    for part in parts:
+        words = part.strip().split()
+        filtered = []
+        for w in words:
+            w_clean = w.strip(",.;!?:")
+            if w_clean in context_terminators:
+                break  # Stop at context word
+            if w_clean not in stop_words and len(w_clean) > 1 and not w_clean.isdigit():
+                filtered.append(w_clean)
+        if filtered:
+            item_str = " ".join(filtered)
+            # Strip leading quantity junk: "5 lbs of potatoes" → "potatoes"
+            item_str = re.sub(r"^\d+\s+", "", item_str)  # Remove leading number
+            item_str = re.sub(r"^(lbs?|pounds?|kg|g|bags?|bottles?|jars?|batches?|ml|l|oz|ea|each)\s+(of\s+)?", "", item_str, flags=re.I)
+            item_str = item_str.strip()
+            if item_str:
+                items.append(item_str)
 
     # Quantity
     quantity = ""
     unit = ""
-    import re
     m = re.search(r"(\d+(?:\.\d+)?)\s*(lbs?|pounds?|kg|g|ea|each|bags?|bottles?|jars?|batches?|ml|L|oz)", text, re.I)
     if m:
         quantity = m.group(1)

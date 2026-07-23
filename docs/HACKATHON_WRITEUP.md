@@ -89,11 +89,40 @@ Streamlit UI — phone-optimized, real-time updates
 
 ## What's Next
 
+### Immediate (v0.2)
 - Voice input via browser Web Speech API
 - Recipe scaling: "50 covers → how many buns?"
 - Supplier API integration (Sysco, Gordon Food Service)
 - Multi-location: Brianne manages 106 Wigle + future locations
 - Telegram bot: text miseBot from the line without opening the app
+
+### Autonomy Graduation (v0.3)
+miseBot implements a **risk-tiered autonomy model** inspired by production self-healing agents:
+
+**Phase 1: Observe-Only (Week 1)**
+- miseBot detects low-stock, prep gaps, schedule conflicts
+- Suggests actions but requires one-tap approval
+- Logs every suggestion with accuracy score
+
+**Phase 2: Trusted Auto-Actions (Week 2+)**
+- Auto-replenish when accuracy > 95% for that ingredient
+- Auto-prep suggestions when menu-to-prep mapping is stable
+- Day Keeper turns yellow → red warnings without auto-deleting items
+
+**Phase 3: Full Autonomy (Month 1)**
+- Email lists auto-send to verified supplier addresses
+- Prep lists auto-generate at 6 AM based on calendar + reservations
+- Anomaly detection: "You usually order 5 lbs tomatoes on Thursday. It's Thursday and you have 2 lbs."
+
+**Safety Guardrails (Always On):**
+- **Deduplication:** Same error/warning won't trigger twice in 1 hour
+- **Rate limiting:** Max 20 auto-actions per shift
+- **Restart throttle:** 3 auto-restarts per feature per day, then human required
+- **Kill switch:** "Stop auto" in Settings disables all autonomy instantly
+- **Fallback parser:** If Gemma goes offline, rule-based NLU handles 90% of commands
+
+### Infrastructure Parity
+miseBot shares HAL's philosophy: autonomous agents don't replace human judgment — they earn trust through observation, then act within bounded safety. Every auto-action is reversible, logged, and can be inspected.
 
 ## Project Links
 

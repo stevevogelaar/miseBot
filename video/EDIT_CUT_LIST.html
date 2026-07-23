@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>miseBot + HAL-Budget — Edit Cut List</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; color: #1A1A1A; }
+        h1 { font-size: 24px; border-bottom: 2px solid #C41E3A; padding-bottom: 8px; }
+        h2 { font-size: 18px; margin-top: 30px; color: #C41E3A; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+        th { background: #f5f5f5; text-align: left; padding: 8px; font-size: 12px; text-transform: uppercase; }
+        td { padding: 8px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: top; }
+        .shot { background: #FFF3E0; }
+        .broll { background: #E8F5E9; }
+        .still { background: #E3F2FD; }
+        .check { width: 20px; }
+        .time { font-family: monospace; color: #555; font-size: 12px; }
+        .caption { font-style: italic; color: #333; }
+        .notes { font-size: 11px; color: #888; }
+        .project-divider { border-top: 3px solid #333; margin: 40px 0; }
+        .status-pending { color: #F57C00; font-weight: bold; }
+        .status-done { color: #2E7D32; font-weight: bold; }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+            h1, h2 { page-break-after: avoid; }
+            tr { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<h1>miseBot + HAL-Budget — Edit Cut List</h1>
+<p class="no-print"><strong>Print this page</strong> and check off shots as you record/edit.</p>
+
+<!-- ==================== miseBot ==================== -->
+
+<h2>Project 1: miseBot (2:00–2:30)</h2>
+
+<table>
+    <tr>
+        <th class="check">☑</th>
+        <th>Time</th>
+        <th>Shot #</th>
+        <th>Type</th>
+        <th>Caption</th>
+        <th>Source</th>
+        <th>Notes</th>
+    </tr>
+    <tr class="still">
+        <td><input type="checkbox"></td>
+        <td class="time">0:00–0:08</td>
+        <td>01</td>
+        <td>Still</td>
+        <td class="caption">"Meet miseBot — your AI sous-chef."</td>
+        <td><code>stills/01_hero.png</code></td>
+        <td class="notes">Full app screenshot, logo centered. Hold 2s.</td>
+    </tr>
+    <tr class="broll">
+        <td><input type="checkbox"></td>
+        <td class="time">0:08–0:25</td>
+        <td>02</td>
+        <td>B-Roll</td>
+        <td class="caption">"Select tonight's menu."</td>
+        <td>OBS capture</td>
+        <td class="notes">Click "Auto-Generate Prep List" → 8 items appear. Keep action only.</td>
+    </tr>
+    <tr class="broll">
+        <td><input type="checkbox"></td>
+        <td class="time">0:25–0:40</td>
+        <td>03</td>
+        <td>B-Roll</td>
+        <td class="caption">"miseBot watches your stock."</td>
+        <td>OBS capture</td>
+        <td class="notes">Click "➕ Coffee" → added to shopping. Toast visible.</td>
+    </tr>
+    <tr class="broll">
+        <td><input type="checkbox"></td>
+        <td class="time">0:40–0:55</td>
+        <td>04</td>
+        <td>B-Roll</td>
+        <td class="caption">"Talk to it like a person."</td>
+        <td>OBS capture</td>
+        <td class="notes">Type "Add whipped feta to prep" → click ⤶ → spinner → added.</td>
+    </tr>
+    <tr class="still">
+        <td><input type="checkbox"></td>
+        <td class="time">0:55–1:10</td>
+        <td>05</td>
+        <td>Still</td>
+        <td class="caption">"It plans your whole day."</td>
+        <td><code>stills/05_timeline.png</code></td>
+        <td class="notes">Day Keeper timeline visible. Can mix with b-roll of typing schedule.</td>
+    </tr>
+    <tr class="broll">
+        <td><input type="checkbox"></td>
+        <td class="time">1:10–1:25</td>
+        <td>06</td>
+        <td>B-Roll</td>
+        <td class="caption">"Check off prep."</td>
+        <td>OBS capture</td>
+        <td class="notes">Click last "✓ Done" → confetti animation → 100%. Capture confetti.</td>
+    </tr>
+    <tr class="broll">
+        <td><input type="checkbox"></td>
+        <td class="time">1:25–1:40</td>
+        <td>07</td>
+        <td>B-Roll</td>
+        <td class="caption">"Email your list in one click."</td>
+        <td>OBS capture</td>
+        <td class="notes">Click "📧 Email Prep List" → toast "Sent!" → cut to email preview.</td>
+    </tr>
+    <tr class="still">
+        <td><input type="checkbox"></td>
+        <td class="time">1:40–1:55</td>
+        <td>08</td>
+        <td>Still</td>
+        <td class="caption">"All local. All private. All Gemma."</td>
+        <td><code>stills/08_privacy.png</code></td>
+        <td class="notes">Settings expander showing "Gemma 4 via Ollama". Info slide, hold 2s.</td>
+    </tr>
+    <tr class="still">
+        <td><input type="checkbox"></td>
+        <td class="time">1:55–2:05</td>
+        <td>09</td>
+        <td>Still</td>
+        <td class="caption">"miseBot. Prep smarter. Order faster. Never miss a beat."</td>
+        <td><code>stills/09_cta.png</code></td>
+        <td class="notes">Hero shot, same as opening. Fade to black.</td>
+    </tr>
+</table>
+
+<!-- ==================== HAL Budget ==================== -->
+
+<div class="project-divider"></div>
+
+<h2>Project 2: HAL Budget (2:00–2:30)</h2>
+
+<table>
+    <tr>
+        <th class="check">☑</th>
+        <th>Time</th>
+        <th>Shot #</th>
+        <th>Type</th>
+        <th>Caption</th>
+        <th>Source</th>
+        <th>Notes</th>
+    </tr>
+    <tr class="still">
+        <td><input type="checkbox"></td>
+        <td class="time">0:00–0:08</td>
+        <td>01</td>
+        <td>Still</td>
+        <td class="caption">"Meet HAL Budget — your local AI finance assistant."</td>
+        <td><code>stills/01_hero.png</code></td>
+        <td class="notes">Full app screenshot, logo. Hold 2s.</td>
+    </tr>
+    <tr class="broll">
+        <td><input type="checkbox"></td>
+        <td class="time">0:08–0:25</td>
+        <td>02</td>
+        <td>B-Roll</td>
+        <td class="caption">"Ask your money questions in plain English."</td>
+        <td>OBS capture</td>
+        <td class="notes">Type "How much did I spend on groceries?" → send → answer appears.</td>
+    </tr>
+    <tr class="broll">
+        <td><input type="checkbox"></td>
+        <td class="time">0:25–0:40</td>
+        <td>03</td>
+        <td>B-Roll</td>
+        <td class="caption">"See your whole financial picture."</td>
+        <td>OBS capture</td>
+        <td class="notes">Click Dashboard tab → scroll through charts + goals.</td>
+    </tr>
+    <tr class="broll">
+        <td><input type="checkbox"></td>
+        <td class="time">0:40–0:55</td>
+        <td>04</td>
+        <td>B-Roll</td>
+        <td class="caption">"Scan receipts. Itemize automatically."</td>
+        <td>OBS capture</td>
+        <td class="notes">Click "Scan Receipt" → select image → items appear → save.</td>
+    </tr>
+    <tr class="still">
+        <td><input type="checkbox"></td>
+        <td class="time">0:55–1:10</td>
+        <td>05</td>
+        <td>Still</td>
+        <td class="caption">"Read-only by default. Your data stays local."</td>
+        <td><code>stills/05_safety.png</code></td>
+        <td class="notes">Settings tab showing safety toggle + model info. Hold 2s.</td>
+    </tr>
+    <tr class="broll">
+        <td><input type="checkbox"></td>
+        <td class="time">1:10–1:25</td>
+        <td>06</td>
+        <td>B-Roll</td>
+        <td class="caption">"Even if Ollama is down, it keeps working."</td>
+        <td>OBS capture</td>
+        <td class="notes">Stop Ollama service → ask question → rule-based engine answers instantly.</td>
+    </tr>
+    <tr class="still">
+        <td><input type="checkbox"></td>
+        <td class="time">1:25–1:40</td>
+        <td>07</td>
+        <td>Still</td>
+        <td class="caption">"Built for the Edge. No cloud. No API keys."</td>
+        <td><code>stills/07_edge.png</code></td>
+        <td class="notes">Settings showing "Gemma 4 via Ollama, localhost". Info slide, hold 2s.</td>
+    </tr>
+    <tr class="still">
+        <td><input type="checkbox"></td>
+        <td class="time">1:40–1:55</td>
+        <td>08</td>
+        <td>Still</td>
+        <td class="caption">"HAL Budget. Ask your money anything. Keep it private."</td>
+        <td><code>stills/08_cta.png</code></td>
+        <td class="notes">Hero shot, same as opening. Fade to black.</td>
+    </tr>
+</table>
+
+<!-- ==================== Global Notes ==================== -->
+
+<div class="project-divider"></div>
+
+<h2>Global Edit Notes</h2>
+
+<ul>
+    <li><strong>Caption style:</strong> White text, top-third of frame, sans-serif (Inter or Roboto), 24px</li>
+    <li><strong>Caption animation:</strong> Fade in 0.3s, hold 1.5s, fade out 0.3s (total ~2s per caption)</li>
+    <li><strong>Still duration:</strong> 1.5s minimum, 2s for hero/info shots</li>
+    <li><strong>B-roll cuts:</strong> Trim to action only — no cursor hovering, no loading dead air</li>
+    <li><strong>Music:</strong> Fade in 2s, bed under all shots, fade out 3s at end</li>
+    <li><strong>Export:</strong> 1080p, H.264 MP4, under 100MB for Kaggle upload</li>
+    <li><strong>Color grade:</strong> Keep natural — no heavy filters. App screenshots should be crisp.</li>
+</ul>
+
+<h2>File Naming Convention</h2>
+
+<pre>
+miseBot/
+  video/
+    stills/
+      01_hero.png
+      02_smart_prep.png
+      03_suggestions.png
+      04_chat.png
+      05_timeline.png
+      06_prep_list.png
+      07_email.png
+      08_privacy.png
+      09_cta.png
+    music/
+      bed.mp3        ← from Tom
+    scripts/
+      DEMO_SCRIPT.md
+    shots/
+      (b-roll raw files from OBS)
+    EDIT_CUT_LIST.html  ← THIS FILE
+
+HAL-Budget/
+  video/
+    stills/
+      01_hero.png
+      02_ask.png
+      03_dashboard.png
+      04_receipt.png
+      05_safety.png
+      06_fallback.png
+      07_edge.png
+      08_cta.png
+    music/
+      bed.mp3        ← from Tom
+    scripts/
+      DEMO_SCRIPT.md
+    shots/
+      (b-roll raw files from OBS)
+</pre>
+
+<h2>Steve's Shot Checklist</h2>
+
+<table>
+    <tr><th>☑</th><th>Action</th><th>Tool</th></tr>
+    <tr><td><input type="checkbox"></td><td>Take miseBot stills (01, 05, 08, 09)</td><td>Snipping Tool / Win+Shift+S</td></tr>
+    <tr><td><input type="checkbox"></td><td>Take HAL-Budget stills (01, 05, 07, 08)</td><td>Snipping Tool / Win+Shift+S</td></tr>
+    <tr><td><input type="checkbox"></td><td>Record miseBot b-roll (02, 03, 04, 06, 07)</td><td>OBS</td></tr>
+    <tr><td><input type="checkbox"></td><td>Record HAL-Budget b-roll (02, 03, 04, 06)</td><td>OBS</td></tr>
+    <tr><td><input type="checkbox"></td><td>Send Tom the AI music prompt</td><td>Email / copy-paste from <code>video/music/AI_MUSIC_PROMPT_FOR_TOM.txt</code></td></tr>
+    <tr><td><input type="checkbox"></td><td>Cut both videos in editor</td><td>Your preferred NLE</td></tr>
+    <tr><td><input type="checkbox"></td><td>Export both MP4s, upload to Kaggle</td><td>Kaggle submission page</td></tr>
+</table>
+
+<p style="margin-top: 40px; text-align: center; font-size: 12px; color: #888;">
+    Built by HAL · Reviewed by Steve · Printed for the edit desk
+</p>
+
+</body>
+</html>

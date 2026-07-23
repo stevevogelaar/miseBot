@@ -15,6 +15,14 @@ def get_conn():
     return conn
 
 
+def _add_col(cursor, table, col, defn):
+    """Add a column if it does not already exist (SQLite safe)."""
+    cursor.execute(f"PRAGMA table_info({table})")
+    existing = [row[1] for row in cursor.fetchall()]
+    if col not in existing:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {defn}")
+
+
 def init_db():
     conn = get_conn()
     cursor = conn.cursor()
@@ -75,10 +83,20 @@ def init_db():
             smtp_user TEXT,
             smtp_pass TEXT,
             list_ttl_days INTEGER DEFAULT 7,
-            active_user TEXT DEFAULT 'Brianne'
+            active_user TEXT DEFAULT 'Brianne',
+            auto_enabled INTEGER DEFAULT 1,
+            max_auto_actions INTEGER DEFAULT 20,
+            max_restarts INTEGER DEFAULT 3
         )
         """
     )
+
+    # Backward-compatible ALTER for existing v0.1 databases
+    _add_col(cursor, "settings", "auto_enabled", "INTEGER DEFAULT 1")
+    _add_col(cursor, "settings", "max_auto_actions", "INTEGER DEFAULT 20")
+    _add_col(cursor, "settings", "max_restarts", "INTEGER DEFAULT 3")
+    _add_col(cursor, "settings", "auto_action_count", "INTEGER DEFAULT 0")
+    _add_col(cursor, "settings", "restart_count", "INTEGER DEFAULT 0")
 
     cursor.execute(
         """
@@ -116,9 +134,65 @@ def init_db():
         """
     )
 
+    # New self-healing tables
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ingredient_stats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            suggestion_count INTEGER DEFAULT 0,
+            approval_count INTEGER DEFAULT 0,
+            accuracy_score REAL DEFAULT 0.0,
+            last_suggested_at TIMESTAMP,
+            last_approved_at TIMESTAMP,
+            auto_approved_count INTEGER DEFAULT 0
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS auto_action_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            action_type TEXT NOT NULL,
+            target TEXT NOT NULL,
+            trigger_reason TEXT,
+            result TEXT,
+            user_approved INTEGER DEFAULT 0,
+            confidence REAL DEFAULT 0.0,
+            log_hash TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS safety_counters (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            shift_date TEXT DEFAULT CURRENT_DATE,
+            auto_action_count INTEGER DEFAULT 0,
+            restart_count INTEGER DEFAULT 0,
+            last_reset_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    # Backward-compatible ALTER for existing v0.1 databases
+    _add_col(cursor, "settings", "auto_enabled", "INTEGER DEFAULT 1")
+    _add_col(cursor, "settings", "max_auto_actions", "INTEGER DEFAULT 20")
+    _add_col(cursor, "settings", "max_restarts", "INTEGER DEFAULT 3")
+    _add_col(cursor, "settings", "auto_action_count", "INTEGER DEFAULT 0")
+    _add_col(cursor, "settings", "restart_count", "INTEGER DEFAULT 0")
+
     # Default settings row
     cursor.execute(
         "INSERT OR IGNORE INTO settings (id, email_to, email_from, active_user) VALUES (1, '', '', 'Brianne')"
+    )
+
+    # Seed default safety counter row
+    cursor.execute(
+        "INSERT OR IGNORE INTO safety_counters (id) VALUES (1)"
     )
 
     conn.commit()
@@ -210,6 +284,159 @@ def remove_item(item_id: int):
     cursor.execute("DELETE FROM list_items WHERE id = ?", (item_id,))
     conn.commit()
     conn.close()
+
+
+def _ensure_ingredient_stat(name: str):
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT OR IGNORE INTO ingredient_stats (name) VALUES (?)",
+        (name,)
+    )
+    conn.commit()
+    conn.close()
+
+
+def record_suggestion(name: str, approved: bool, confidence: float = 0.0):
+    _ensure_ingredient_stat(name)
+    conn = get_conn()
+    cursor = conn.cursor()
+    now = datetime.now().isoformat()
+    cursor.execute(
+        """
+        UPDATE ingredient_stats
+        SET suggestion_count = suggestion_count + 1,
+            approval_count = approval_count + ?,
+            accuracy_score = (approval_count + ?) * 1.0 / (suggestion_count + 1),
+            last_suggested_at = ?,
+            last_approved_at = CASE WHEN ? THEN ? ELSE last_approved_at END,
+            auto_approved_count = auto_approved_count + ?
+        WHERE name = ?
+        """,
+        (1 if approved else 0, 1 if approved else 0, now, approved, now, 1 if approved else 0, name)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_ingredient_stats(name: str = None):
+    conn = get_conn()
+    cursor = conn.cursor()
+    if name:
+        cursor.execute("SELECT * FROM ingredient_stats WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+    cursor.execute("SELECT * FROM ingredient_stats ORDER BY name")
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def log_auto_action(action_type: str, target: str, trigger_reason: str = "",
+                    result: str = "", user_approved: bool = False,
+                    confidence: float = 0.0, log_hash: str = ""):
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO auto_action_log
+        (action_type, target, trigger_reason, result, user_approved, confidence, log_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (action_type, target, trigger_reason, result,
+         1 if user_approved else 0, confidence, log_hash)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_auto_actions(limit: int = 50, action_type: str = None):
+    conn = get_conn()
+    cursor = conn.cursor()
+    if action_type:
+        cursor.execute(
+            "SELECT * FROM auto_action_log WHERE action_type = ? ORDER BY created_at DESC LIMIT ?",
+            (action_type, limit)
+        )
+    else:
+        cursor.execute(
+            "SELECT * FROM auto_action_log ORDER BY created_at DESC LIMIT ?",
+            (limit,)
+        )
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def get_log_hash_count(log_hash: str, hours: int = 1):
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT COUNT(*) as cnt FROM auto_action_log WHERE log_hash = ? AND created_at > datetime('now', ?)",
+        (log_hash, f"-{hours} hour")
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return row["cnt"] if row else 0
+
+
+def get_safety_counters():
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM safety_counters WHERE id = 1")
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else {}
+
+
+def reset_safety_counters():
+    conn = get_conn()
+    cursor = conn.cursor()
+    now = datetime.now().isoformat()
+    today = datetime.now().strftime("%Y-%m-%d")
+    cursor.execute(
+        """
+        UPDATE safety_counters
+        SET shift_date = ?, auto_action_count = 0, restart_count = 0, last_reset_at = ?
+        WHERE id = 1
+        """,
+        (today, now)
+    )
+    conn.commit()
+    conn.close()
+
+
+def increment_safety_counter(field: str):
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute(
+        f"UPDATE safety_counters SET {field} = {field} + 1 WHERE id = 1"
+    )
+    conn.commit()
+    conn.close()
+
+
+def is_deduplicate(log_hash: str, hours: int = 1) -> bool:
+    return get_log_hash_count(log_hash, hours) > 0
+
+
+def check_rate_limit(max_actions: int = 20) -> bool:
+    counters = get_safety_counters()
+    today = datetime.now().strftime("%Y-%m-%d")
+    if counters.get("shift_date") != today:
+        reset_safety_counters()
+        counters = get_safety_counters()
+    return counters.get("auto_action_count", 0) < max_actions
+
+
+def check_restart_throttle(max_restarts: int = 3) -> bool:
+    counters = get_safety_counters()
+    today = datetime.now().strftime("%Y-%m-%d")
+    if counters.get("shift_date") != today:
+        reset_safety_counters()
+        counters = get_safety_counters()
+    return counters.get("restart_count", 0) < max_restarts
 
 
 def archive_old_lists(ttl_days: int = 30):

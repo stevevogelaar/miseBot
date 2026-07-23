@@ -113,17 +113,20 @@ MOBILE_CSS = """
     /* Header */
     .app-header {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
+        text-align: center;
         margin-bottom: 12px;
     }
     .app-logo {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: 4px;
     }
     .app-title {
-        font-size: 18px;
+        font-size: 24px;
         font-weight: 700;
         color: #1A1A1A;
         margin: 0;

@@ -20,6 +20,15 @@ from database import (
     add_reminder,
     get_reminders,
     dismiss_reminder,
+    record_suggestion,
+    get_ingredient_stats,
+    get_auto_actions,
+    log_auto_action,
+    is_deduplicate,
+    check_rate_limit,
+    check_restart_throttle,
+    reset_safety_counters,
+    increment_safety_counter,
 )
 from data.seed_data import run_seed
 from bot_engine import parse_user_input, generate_reply
@@ -28,11 +37,48 @@ from components.mobile_frame import inject_mobile_css
 from components.logo_b64 import LOGO_B64
 from utils.helpers import check_low_stock
 
+# ─── Autonomy helpers ─────────────────────────────────────────────────────────
+import hashlib
+
+def _log_hash(text: str) -> str:
+    return hashlib.md5(text[-200:].encode("utf-8")).hexdigest()[:16]
+
+def get_autonomy_phase(ing_name: str, min_confidence: float = 0.95, min_approvals: int = 5) -> str:
+    """Returns: observe_only | trusted_auto | full"""
+    stats = get_ingredient_stats(ing_name)
+    if not stats:
+        return "observe_only"
+    acc = stats.get("accuracy_score", 0.0)
+    approvals = stats.get("approval_count", 0)
+    if acc >= min_confidence and approvals >= min_approvals:
+        return "trusted_auto"
+    return "observe_only"
+
+def get_auto_setting(key: str, default=True):
+    s = get_settings()
+    return s.get(key, default)
+
+def set_auto_setting(**kwargs):
+    save_settings(**kwargs)
+
+def _is_valid_item(name: str) -> bool:
+    """Reject garbage from fallback parser."""
+    if len(name) > 30 or len(name) < 2:
+        return False
+    garbage = {"before", "tonight", "dinner", "service", "make", "want", "going", "will", "should", "could", "would"}
+    words = name.lower().split()
+    if any(w in garbage for w in words):
+        return False
+    return True
+
 # ─── Init ────────────────────────────────────────────────────────────────────
 init_db()
 if "seeded" not in st.session_state:
     run_seed()
     st.session_state.seeded = True
+
+# Reset safety counters if new day
+reset_safety_counters()
 
 st.set_page_config(page_title="miseBot", page_icon="🍳", layout="centered")
 inject_mobile_css()
@@ -43,10 +89,10 @@ defaults = {
     "active_tab": "prep",
     "prep_collapsed": False,
     "shopping_collapsed": False,
-    "settings_open": False,
     "demo_menu_set": False,
     "demo_day_set": False,
     "confetti_fired": False,
+    "last_chat_input": "",
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -58,49 +104,90 @@ settings = get_settings()
 # ─── Header ──────────────────────────────────────────────────────────────────
 st.markdown(
     f"""
-    <div class="app-header">
-        <div class="app-logo">
-            <img src="data:image/png;base64,{LOGO_B64}" alt="miseBot" style="width:36px; height:36px; border-radius:6px;">
-            <span class="app-title">miseBot</span>
-        </div>
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; margin-bottom:12px;">
+        <img src="data:image/png;base64,{LOGO_B64}" alt="miseBot" style="width:200px; height:200px; border-radius:16px; margin-bottom:4px;">
+        <span style="font-size:24px; font-weight:700; color:#1A1A1A;">miseBot</span>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-# Gear icon
-if st.button("⚙️", key="gear_btn", help="Settings"):
-    st.session_state.settings_open = not st.session_state.settings_open
-
-# ─── Settings Modal ──────────────────────────────────────────────────────────
-if st.session_state.settings_open:
-    with st.expander("⚙️ Settings", expanded=True):
-        st.subheader("Email Setup")
-        email_to = st.text_input("Send lists to", value=settings.get("email_to", ""), key="set_to")
-        email_from = st.text_input("From email", value=settings.get("email_from", ""), key="set_from")
-        smtp_host = st.text_input("SMTP Host", value=settings.get("smtp_host", "smtp.gmail.com"), key="set_host")
-        smtp_port = st.number_input("SMTP Port", value=settings.get("smtp_port", 587), key="set_port")
-        smtp_user = st.text_input("SMTP User", value=settings.get("smtp_user", ""), key="set_user")
-        smtp_pass = st.text_input("SMTP Password", type="password", value=settings.get("smtp_pass", ""), key="set_pass")
-
-        st.subheader("List Preferences")
-        ttl = st.slider("List TTL (days)", 1, 30, settings.get("list_ttl_days", 7), key="set_ttl")
-        active_user = st.text_input("Active User", value=settings.get("active_user", "Brianne"), key="set_user_name")
-
-        if st.button("💾 Save Settings"):
-            save_settings(
-                email_to=email_to,
-                email_from=email_from,
-                smtp_host=smtp_host,
-                smtp_port=int(smtp_port),
-                smtp_user=smtp_user,
-                smtp_pass=smtp_pass,
-                list_ttl_days=int(ttl),
-                active_user=active_user,
+# ─── Smart Suggestions (Autonomous) ──────────────────────────────────────────
+ingredients = get_ingredients()
+low_stock_alerts = []
+for ing in ingredients:
+    if ing.get("current_stock") is not None and ing.get("min_stock") is not None and ing.get("usage_rate_per_week"):
+        days = check_low_stock(ing["current_stock"], ing["min_stock"], ing["usage_rate_per_week"])
+        if days is not None and days <= 3:
+            low_stock_alerts.append(
+                {"name": ing["name"], "days": days, "stock": ing["current_stock"],
+                 "text": f"{ing['name']} — {days} days left (stock: {ing['current_stock']})"}
             )
-            st.success("Settings saved!")
-            st.session_state.settings_open = False
+
+auto_enabled = get_auto_setting("auto_enabled", True)
+max_actions = int(get_auto_setting("max_auto_actions", 20))
+max_restarts = int(get_auto_setting("max_restarts", 3))
+
+if low_stock_alerts:
+    st.markdown("<div style='margin:8px 0;'><b>🔔 Smart Suggestions</b></div>", unsafe_allow_html=True)
+    for alert in low_stock_alerts[:3]:
+        name = alert["name"]
+        phase = get_autonomy_phase(name)
+        log_h = _log_hash(alert["text"])
+
+        # Guardrails
+        if is_deduplicate(log_h, hours=1):
+            continue
+        if not check_rate_limit(max_actions):
+            st.caption("⚠️ Rate limit reached. No more auto-actions this shift.")
+            break
+
+        if phase == "trusted_auto" and auto_enabled:
+            # AUTONOMOUS: add directly
+            lst = get_or_create_list("shopping")
+            add_item(lst["id"], name, "1", "ea")
+            log_auto_action(
+                action_type="auto_replenish",
+                target=name,
+                trigger_reason=f"{alert['days']} days stock remaining",
+                result="added_to_shopping",
+                user_approved=True,
+                confidence=alert.get("confidence", 0.95),
+                log_hash=log_h,
+            )
+            increment_safety_counter("auto_action_count")
+            record_suggestion(name, approved=True, confidence=0.95)
+            # Mark dedup so this doesn't re-fire
+            log_auto_action(
+                action_type="dedup_marker",
+                target=name,
+                log_hash=log_h,
+            )
+            st.toast(f"🤖 Auto-added {name} to shopping list")
             st.rerun()
+        else:
+            # OBSERVE-ONLY: show suggest button
+            if st.button(f"➕ {alert['text']}", key=f"alert_{name[:20]}"):
+                lst = get_or_create_list("shopping")
+                add_item(lst["id"], name, "1", "ea")
+                log_auto_action(
+                    action_type="suggest_replenish",
+                    target=name,
+                    trigger_reason=f"{alert['days']} days stock remaining",
+                    result="user_approved_added",
+                    user_approved=True,
+                    confidence=0.6,
+                    log_hash=log_h,
+                )
+                # Mark dedup only AFTER click so button re-appears next load
+                log_auto_action(
+                    action_type="dedup_marker",
+                    target=name,
+                    log_hash=log_h,
+                )
+                record_suggestion(name, approved=True, confidence=0.6)
+                st.toast(f"Added {name} to shopping list")
+                st.rerun()
 
 # ─── Chat Input ──────────────────────────────────────────────────────────────
 st.markdown("""
@@ -109,10 +196,28 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-chat_input = st.text_input("", placeholder="Type a command...", key="chat_input", label_visibility="collapsed")
+# Dark-border CSS for prompt box
+st.markdown("""
+<style>
+[data-testid="stTextInput"] input {
+    border: 2px solid #1A1A1A !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
-if chat_input:
-    action = parse_user_input(chat_input)
+with st.form(key="chat_form", clear_on_submit=True):
+    cols = st.columns([5, 1])
+    with cols[0]:
+        chat_input = st.text_input("", placeholder="Type a command...", label_visibility="collapsed")
+    with cols[1]:
+        submit = st.form_submit_button("⤶", use_container_width=True)
+
+if submit and chat_input:
+    # Thinking spinner while Ollama/Gemma parses
+    with st.spinner("🧠 miseBot is thinking..."):
+        action = parse_user_input(chat_input)
     reply = generate_reply(action)
     st.session_state.chat_log.append({"user": chat_input, "bot": reply, "action": action})
 
@@ -128,13 +233,26 @@ if chat_input:
     if intent == "add" and items:
         lt = list_type if list_type in ("shopping", "prep") else "shopping"
         lst = get_or_create_list(lt)
+        added = []
+        skipped = []
         for itm in items:
+            if not _is_valid_item(itm):
+                skipped.append(itm)
+                continue
             existing = get_items(lst["id"])
             # Duplicate check
             dup = [e for e in existing if itm.lower() in e["name"].lower() or e["name"].lower() in itm.lower()]
             if dup:
-                st.toast(f"⚠️ '{itm}' is already on your {lt} list. Add more or keep as-is.")
+                st.toast(f"⚠️ '{itm}' is already on your {lt} list.")
+                continue
             add_item(lst["id"], itm, qty, unit)
+            added.append(itm)
+        if added:
+            st.toast(f"✅ Added {', '.join(added)} to {lt} list")
+        if skipped:
+            st.toast(f"🤔 Couldn't understand: {', '.join(skipped)}. Try 'Add tomatoes to shopping'")
+        if not added and not skipped:
+            st.toast("🤔 Couldn't parse items. Try: 'Add tomatoes and onions to shopping'")
         st.session_state.active_tab = lt
 
     elif intent == "done" and items:
@@ -213,27 +331,6 @@ if st.session_state.chat_log:
                 <b>miseBot:</b> {msg['bot']}
             </div>
             """, unsafe_allow_html=True)
-
-# ─── Smart Suggestions ─────────────────────────────────────────────────────────
-ingredients = get_ingredients()
-low_stock_alerts = []
-for ing in ingredients:
-    if ing.get("current_stock") is not None and ing.get("min_stock") is not None and ing.get("usage_rate_per_week"):
-        days = check_low_stock(ing["current_stock"], ing["min_stock"], ing["usage_rate_per_week"])
-        if days is not None and days <= 3:
-            low_stock_alerts.append(
-                f"{ing['name']} — {days} days left (stock: {ing['current_stock']})"
-            )
-
-if low_stock_alerts:
-    st.markdown("<div style='margin:8px 0;'><b>🔔 Smart Suggestions</b></div>", unsafe_allow_html=True)
-    for alert in low_stock_alerts[:3]:
-        if st.button(f"➕ {alert}", key=f"alert_{alert[:20]}"):
-            lst = get_or_create_list("shopping")
-            name = alert.split(" — ")[0]
-            add_item(lst["id"], name, "1", "ea")
-            st.toast(f"Added {name} to shopping list")
-            st.rerun()
 
 # ─── Demo Seeding ──────────────────────────────────────────────────────────────
 if not st.session_state.demo_menu_set:
@@ -489,6 +586,73 @@ if st.session_state.active_tab == "shopping":
                     st.error("Failed. Check settings.")
             else:
                 st.warning("Configure email in Settings first.")
+
+# ─── Settings (Collapsible, bottom of page) ──────────────────────────────────
+settings = get_settings()
+with st.expander("⚙️ Settings", expanded=False):
+    st.subheader("Email Setup")
+    email_to = st.text_input("Send lists to", value=settings.get("email_to", ""), key="set_to")
+    email_from = st.text_input("From email", value=settings.get("email_from", ""), key="set_from")
+    smtp_host = st.text_input("SMTP Host", value=settings.get("smtp_host", "smtp.gmail.com"), key="set_host")
+    smtp_port = st.number_input("SMTP Port", value=settings.get("smtp_port", 587), key="set_port")
+    smtp_user = st.text_input("SMTP User", value=settings.get("smtp_user", ""), key="set_user")
+    smtp_pass = st.text_input("SMTP Password", type="password", value=settings.get("smtp_pass", ""), key="set_pass")
+
+    st.subheader("List Preferences")
+    ttl = st.slider("List TTL (days)", 1, 30, settings.get("list_ttl_days", 7), key="set_ttl")
+    active_user = st.text_input("Active User", value=settings.get("active_user", "Brianne"), key="set_user_name")
+
+    st.subheader("🛡️ Autonomy Safety")
+    auto_enabled = st.toggle("Enable auto-actions", value=settings.get("auto_enabled", True), key="set_auto")
+    max_actions = st.slider("Max auto-actions per shift", 5, 50, settings.get("max_auto_actions", 20), key="set_max_auto")
+    max_restarts = st.slider("Max restarts per feature/day", 1, 10, settings.get("max_restarts", 3), key="set_max_restart")
+
+    st.subheader("📊 Safety Dashboard")
+    counters = get_auto_actions(limit=5)
+    safety = get_settings()
+    st.markdown(f"""
+    <div style="font-size:12px; color:#555;">
+    • Auto-actions today: {safety.get('auto_action_count', 0)} / {max_actions}<br>
+    • Restarts today: {safety.get('restart_count', 0)} / {max_restarts}<br>
+    • Recent actions: {len(counters)}<br>
+    • Phase: {get_autonomy_phase('Coffee')}
+    </div>
+    """, unsafe_allow_html=True)
+
+    if st.button("💾 Save Settings"):
+        save_settings(
+            email_to=email_to,
+            email_from=email_from,
+            smtp_host=smtp_host,
+            smtp_port=int(smtp_port),
+            smtp_user=smtp_user,
+            smtp_pass=smtp_pass,
+            list_ttl_days=int(ttl),
+            active_user=active_user,
+            auto_enabled=auto_enabled,
+            max_auto_actions=int(max_actions),
+            max_restarts=int(max_restarts),
+        )
+        st.success("Settings saved!")
+        st.rerun()
+
+    st.markdown("---")
+    st.subheader("🧨 Demo Reset")
+    if st.button("Clear all lists, schedule, and reminders"):
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM list_items")
+        cursor.execute("DELETE FROM lists WHERE status = 'active'")
+        cursor.execute("DELETE FROM time_blocks")
+        cursor.execute("DELETE FROM reminders")
+        conn.commit()
+        conn.close()
+        st.session_state.demo_menu_set = False
+        st.session_state.demo_day_set = False
+        st.session_state.chat_log = []
+        st.session_state.last_chat_input = ""
+        st.success("Demo data cleared!")
+        st.rerun()
 
 # ─── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("""
